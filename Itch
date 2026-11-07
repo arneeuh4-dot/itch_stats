@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>itch.io stats</title>
+<style>
+:root{--blue:#1d4ed8;--soft:#dbe7ff;--ink:#0f2350;--mute:#5b6b8c}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font:16px/1.4 "Trebuchet MS",system-ui,sans-serif;padding:20px;padding-top:max(20px,env(safe-area-inset-top))}
+.w{max-width:480px;margin:0 auto}
+h1{font:700 20px/1.2 Georgia,serif;margin:0 0 4px}
+#status{font-size:12px;color:var(--mute)}
+.nums{display:flex;gap:24px;margin:18px 0 22px;flex-wrap:wrap}
+.nums b{display:block;font:700 30px/1.1 Georgia,serif;color:var(--blue)}
+.nums span{font-size:13px;color:var(--mute)}
+h2{font-size:14px;margin:0 0 10px;color:var(--mute);font-weight:400}
+.row{margin-bottom:12px}
+.row .top{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:4px}
+.row .top span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .top span:last-child{font-weight:700;color:var(--blue)}
+.bar{height:12px;background:var(--soft);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--blue);border-radius:6px;width:0;transition:width .5s}
+button{margin-top:10px;font:inherit;font-size:14px;color:var(--blue);background:#fff;border:1px solid var(--blue);border-radius:8px;padding:8px 14px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="w">
+  <h1>Mijn itch.io stats</h1>
+  <div id="status">Laden…</div>
+  <div class="nums">
+    <div><b id="views">–</b><span>views</span></div>
+    <div><b id="earn">–</b><span>earnings</span></div>
+    <div><b id="sales">–</b><span>verkocht</span></div>
+  </div>
+  <h2>Views per game</h2>
+  <div id="chart"></div>
+  <button id="refresh" type="button">Nu verversen</button>
+</div>
+<script>
+var WORKER_URL = "https://restless-bar-6ee1.arneeuh4.workers.dev";
+function el(id){return document.getElementById(id)}
+function nf(n){return new Intl.NumberFormat("nl-NL").format(n||0)}
+
+function drawChart(games){
+  var box = el("chart"); box.textContent = "";
+  if(!games){ box.textContent = "Werk eerst je Worker-code bij om de grafiek te zien."; return; }
+  var sorted = games.slice().sort(function(a,b){return b.views-a.views});
+  var max = sorted.length ? Math.max(sorted[0].views,1) : 1;
+  sorted.forEach(function(g){
+    var row = document.createElement("div"); row.className = "row";
+    var top = document.createElement("div"); top.className = "top";
+    var a = document.createElement("span"); a.textContent = g.title;
+    var b = document.createElement("span"); b.textContent = nf(g.views);
+    top.appendChild(a); top.appendChild(b);
+    var bar = document.createElement("div"); bar.className = "bar";
+    var fill = document.createElement("i"); bar.appendChild(fill);
+    row.appendChild(top); row.appendChild(bar); box.appendChild(row);
+    setTimeout(function(){ fill.style.width = (g.views/max*100) + "%"; }, 30);
+  });
+}
+
+function load(){
+  el("status").textContent = "Laden…";
+  fetch(WORKER_URL).then(function(r){
+    if(!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function(d){
+    el("views").textContent = nf(d.views);
+    el("earn").textContent = d.earnings;
+    el("sales").textContent = nf(d.sales);
+    drawChart(d.games);
+    el("status").textContent = "Bijgewerkt " + new Date().toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit"});
+  }).catch(function(){
+    el("status").textContent = "Ophalen mislukt";
+  });
+}
+el("refresh").addEventListener("click", load);
+load();
+setInterval(load, 300000);
+</script>
+</body>
+</html>
